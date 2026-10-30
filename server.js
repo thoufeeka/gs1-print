@@ -43,8 +43,8 @@ const odooCall = async (model, method, payload = {}) => {
 const validTokens = new Set();
 
 const getAppCredentials = () => ({
-  username: (process.env.APP_USERNAME || 'admin').trim(),
-  password: (process.env.APP_PASSWORD || 'admin').trim(),
+  username: (process.env.APP_USERNAME).trim(),
+  password: (process.env.APP_PASSWORD).trim(),
 });
 
 // POST /api/login
@@ -227,19 +227,19 @@ app.post('/api/fetch-order', requireAuth, async (req, res) => {
       const product = productMap[move.product_id?.[0]] || {};
       const lots = (move.lot_ids || []).map(lid => lotMap[lid]?.name).filter(Boolean);
       return {
-        move_id:      move.id,
-        picking_id:   move.picking_id?.[0],
+        move_id: move.id,
+        picking_id: move.picking_id?.[0],
         picking_name: move.picking_id?.[1],
-        product_id:   move.product_id?.[0],
+        product_id: move.product_id?.[0],
         product_name: product.name || move.product_id?.[1] || move.description_picking || 'Product',
-        product_ref:  product.default_code || '',
-        barcode:      product.barcode || '',
-        qty_demand:   move.product_uom_qty || 0,
-        qty_done:     move.quantity || 0,
-        uom:          move.product_uom?.[1] || 'Units',
-        state:        move.state,
-        lots:         lots.join(', '),
-        description:  move.description_picking || '',
+        product_ref: product.default_code || '',
+        barcode: product.barcode || '',
+        qty_demand: move.product_uom_qty || 0,
+        qty_done: move.quantity || 0,
+        uom: move.product_uom?.[1] || 'Units',
+        state: move.state,
+        lots: lots.join(', '),
+        description: move.description_picking || '',
       };
     });
 
@@ -249,19 +249,19 @@ app.post('/api/fetch-order', requireAuth, async (req, res) => {
       client_order_ref: saleOrder?.client_order_ref || '',
       partner: partnerInfo,
       pickings: pickings.map(p => ({
-        id:           p.id,
-        name:         p.name,
-        origin:       p.origin,
-        state:        p.state,
-        partner:      p.partner_id?.[1] || '',
+        id: p.id,
+        name: p.name,
+        origin: p.origin,
+        state: p.state,
+        partner: p.partner_id?.[1] || '',
         picking_type: p.picking_type_id?.[1] || '',
-        date:         p.date_done || p.scheduled_date || '',
+        date: p.date_done || p.scheduled_date || '',
       })),
       move_lines: enrichedMoves,
       config: {
         gs1_company_prefix: process.env.GS1_COMPANY_PREFIX || '26249798',
-        sscc_start_serial:  parseInt(process.env.SSCC_START_SERIAL || '1000', 10),
-        extension_digit:    process.env.SSCC_EXTENSION_DIGIT || '3',
+        sscc_start_serial: parseInt(process.env.SSCC_START_SERIAL || '1000', 10),
+        extension_digit: process.env.SSCC_EXTENSION_DIGIT || '3',
       },
     });
 
@@ -307,17 +307,17 @@ app.post('/api/barcode', requireAuth, async (req, res) => {
 
 // ─── GET /api/config ─────────────────────────────────────────────────────────
 app.get('/api/config', requireAuth, (req, res) => {
-  const apiKey   = (process.env.ODOO_API_KEY || '').replace(/^"|"$/g, '').trim();
-  const db       = (process.env.ODOO_DB || '').trim();
-  const url      = (process.env.ODOO_URL || '').replace(/\/+$/, '');
+  const apiKey = (process.env.ODOO_API_KEY || '').replace(/^"|"$/g, '').trim();
+  const db = (process.env.ODOO_DB || '').trim();
+  const url = (process.env.ODOO_URL || '').replace(/\/+$/, '');
   res.json({
-    odoo_url:           url,
-    odoo_db:            db || '(not set)',
+    odoo_url: url,
+    odoo_db: db || '(not set)',
     gs1_company_prefix: process.env.GS1_COMPANY_PREFIX || '26249798',
-    sscc_start_serial:  parseInt(process.env.SSCC_START_SERIAL || '1000', 10),
-    extension_digit:    process.env.SSCC_EXTENSION_DIGIT || '3',
-    api_key_set:        !!apiKey,
-    auth_ready:         !!(apiKey && db && url),
+    sscc_start_serial: parseInt(process.env.SSCC_START_SERIAL || '1000', 10),
+    extension_digit: process.env.SSCC_EXTENSION_DIGIT || '3',
+    api_key_set: !!apiKey,
+    auth_ready: !!(apiKey && db && url),
   });
 });
 
