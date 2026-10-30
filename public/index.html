@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GS1 Pallet Label Printer — Odoo 19 Integration</title>
+  <meta name="description" content="Professional GS1-128 A6 pallet logistics label generator with live Odoo 19 integration, SSCC calculation, and thermal print automation." />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { inter: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: { 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5' },
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- JsBarcode for client-side barcode rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+</head>
+
+<body class="font-inter antialiased">
+
+  <!-- ╔══════════════════════════════════════════════════════════╗
+       ║   TOAST NOTIFICATIONS                                    ║
+       ╚══════════════════════════════════════════════════════════╝ -->
+  <div id="toast-container"></div>
+
+  <!-- ╔══════════════════════════════════════════════════════════╗
+       ║   APP HEADER                                             ║
+       ╚══════════════════════════════════════════════════════════╝ -->
+  <header id="app-header" class="header-glow sticky top-0 z-50 px-6 py-4">
+    <div class="max-w-screen-2xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Logo Icon -->
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center"
+             style="background: linear-gradient(135deg, #4f46e5, #38bdf8);">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M4 7h16M4 12h16M4 17h16M8 3v4M16 3v4M8 17v4M16 17v4"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold gradient-text leading-none">GS1 Label Printer</h1>
+          <p class="text-xs text-slate-500 leading-none mt-0.5">Odoo 19 · A6 Pallet Logistics</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- API Status Pill -->
+        <div id="api-status-pill" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold
+             bg-slate-800 border border-slate-700 text-slate-400">
+          <span class="w-2 h-2 rounded-full bg-slate-600" id="status-dot"></span>
+          <span id="status-text">Checking...</span>
+        </div>
+        <!-- Settings Toggle -->
+        <button id="settings-toggle-btn" class="btn-secondary" onclick="toggleSettings()">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          Settings
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ╔══════════════════════════════════════════════════════════╗
+       ║   SETTINGS TRAY (Collapsable)                            ║
+       ╚══════════════════════════════════════════════════════════╝ -->
+  <div id="settings-panel">
+    <div id="settings-tray" class="settings-tray">
+      <div class="border-b border-slate-800 px-6 py-5">
+        <div class="max-w-screen-2xl mx-auto">
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div class="glass-card-light p-3">
+              <div class="form-label">Odoo URL</div>
+              <div id="cfg-odoo-url" class="text-sm font-mono text-indigo-300 truncate">—</div>
+            </div>
+            <div class="glass-card-light p-3">
+              <div class="form-label">Database</div>
+              <div id="cfg-odoo-db" class="text-sm font-mono text-indigo-300 truncate">—</div>
+            </div>
+            <div class="glass-card-light p-3">
+              <div class="form-label">API Key</div>
+              <div id="cfg-api-key" class="text-sm font-mono">—</div>
+            </div>
+            <div class="glass-card-light p-3">
+              <div class="form-label">GS1 Company Prefix</div>
+              <div id="cfg-gs1-prefix" class="text-sm font-mono text-cyan-300 truncate">—</div>
+            </div>
+            <div class="glass-card-light p-3">
+              <div class="form-label">Extension Digit</div>
+              <div id="cfg-ext-digit" class="text-sm font-mono text-cyan-300">—</div>
+            </div>
+            <div class="glass-card-light p-3">
+              <div class="form-label">SSCC Start Serial</div>
+              <div id="cfg-sscc-serial" class="text-sm font-mono text-cyan-300">—</div>
+            </div>
+          </div>
+          <!-- SSCC Preview -->
+          <div class="mt-3 glass-card-light p-3 flex items-center gap-4">
+            <div class="form-label whitespace-nowrap">Next SSCC Preview</div>
+            <div id="cfg-sscc-preview" class="text-sm font-mono text-yellow-300 tracking-wider">—</div>
+            <div class="ml-auto">
+              <label class="form-label whitespace-nowrap mb-0 inline mr-2">Serial Override</label>
+              <input type="number" id="serial-override-input"
+                     class="split-input w-28" min="1" placeholder="e.g. 1000"
+                     oninput="updateSerialOverride(this.value)" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ╔══════════════════════════════════════════════════════════╗
+       ║   SEARCH PANEL                                           ║
+       ╚══════════════════════════════════════════════════════════╝ -->
+  <div id="search-panel" class="px-6 py-8">
+    <div class="max-w-2xl mx-auto text-center">
+      <p class="text-slate-400 text-sm mb-6">Enter an Odoo Sales or Delivery Order ID to fetch packing details.</p>
+      <div class="flex gap-3">
+        <div class="relative flex-1">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+          </span>
+          <input type="text" id="order-input"
+                 class="form-input pl-10 text-lg h-12"
+                 placeholder="e.g. SO03404 or WH/OUT/00123"
+                 onkeydown="if(event.key==='Enter') fetchOrder()" />
+        </div>
+        <button id="fetch-btn" class="btn-primary h-12 px-6" onclick="fetchOrder()">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="m21 21-4.35-4.35M11 19A8 8 0 1 0 11 3a8 8 0 0 0 0 16z"/>
+          </svg>
+          Fetch Details
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ╔══════════════════════════════════════════════════════════╗
+       ║   MAIN WORKSPACE (hidden until order loaded)             ║
+       ╚══════════════════════════════════════════════════════════╝ -->
+  <div id="main-workspace" class="hidden px-6 pb-10">
+    <div class="max-w-screen-2xl mx-auto">
+
+      <!-- Order Banner -->
+      <div class="glass-card p-4 mb-6 flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center gap-4">
+          <div>
+            <span class="form-label">Loaded Order</span>
+            <span id="order-banner-id" class="text-xl font-bold text-indigo-300 font-mono">—</span>
+          </div>
+          <div>
+            <span class="form-label">Delivery</span>
+            <span id="order-banner-picking" class="text-sm text-slate-300">—</span>
+          </div>
+          <div>
+            <span class="form-label">Status</span>
+            <span id="order-banner-status" class="badge badge-draft">—</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="btn-secondary" onclick="addNewPallet()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+            New Pallet
+          </button>
+          <button class="btn-secondary" onclick="clearWorkspace()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Dual Column Layout -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+        <!-- ─── LEFT: Odoo Sync Console ─────────────────────── -->
+        <div class="space-y-4">
+
+          <!-- Pallet Tabs -->
+          <div class="glass-card p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-widest">📦 Pallet Manager</h2>
+              <span class="text-xs text-slate-500" id="pallet-count-label">0 pallets</span>
+            </div>
+            <div id="pallet-tabs" class="flex flex-wrap gap-2"></div>
+          </div>
+
+          <!-- Odoo Move Lines Table -->
+          <div class="glass-card overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+              <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-widest">📋 Order Lines</h2>
+              <span class="text-xs text-slate-500" id="lines-count-label">0 lines</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="data-table" id="order-lines-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>GTIN / Barcode</th>
+                    <th>Qty</th>
+                    <th>Pallet Qty</th>
+                    <th class="text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="order-lines-body">
+                  <tr>
+                    <td colspan="5" class="text-center text-slate-500 py-8">No order loaded</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Current Pallet Summary -->
+          <div class="glass-card p-4" id="pallet-summary-card">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-widest">
+                🗂 Active Pallet Contents
+              </h2>
+              <button class="btn-success text-xs" onclick="commitPalletContents()">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <path d="M5 13l4 4L19 7"/>
+                </svg>
+                Apply to Label
+              </button>
+            </div>
+            <div id="pallet-contents" class="space-y-2 text-sm text-slate-400">
+              <p>No active pallet. Click a pallet tab or "New Pallet".</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── RIGHT: Customizer + Label Preview ──────────── -->
+        <div class="space-y-4">
+
+          <!-- Label Customizer -->
+          <div class="glass-card p-5">
+            <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-4">✏️ Label Customizer</h2>
+            <div class="space-y-3">
+              <div>
+                <label class="form-label" for="lbl-pallet-title">Pallet Title</label>
+                <input type="text" id="lbl-pallet-title" class="form-input"
+                       placeholder="e.g. S03404 - Pallet 1 - 66 boxes"
+                       oninput="onCustomizerChange()" />
+              </div>
+              <div>
+                <label class="form-label" for="lbl-category">Category / Description</label>
+                <input type="text" id="lbl-category" class="form-input"
+                       placeholder="e.g. Mixed Apparel – Spring Collection 2025"
+                       oninput="onCustomizerChange()" />
+              </div>
+              <div>
+                <label class="form-label" for="lbl-order-number">Order Number (override)</label>
+                <input type="text" id="lbl-order-number" class="form-input"
+                       placeholder="e.g. SO03404"
+                       oninput="onCustomizerChange()" />
+              </div>
+              <div>
+                <label class="form-label" for="lbl-sscc">SSCC (18 digits)</label>
+                <div class="flex gap-2">
+                  <input type="text" id="lbl-sscc" class="form-input font-mono text-yellow-300"
+                         maxlength="18" placeholder="Auto-generated"
+                         oninput="onCustomizerChange()" />
+                  <button class="btn-secondary whitespace-nowrap" onclick="regenerateSSCC()">
+                    ↻ New
+                  </button>
+                </div>
+              </div>
+              <!-- Item Description overrides -->
+              <div>
+                <label class="form-label">Item Descriptions</label>
+                <div id="item-desc-inputs" class="space-y-2"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Label Preview Header -->
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-widest">🏷 Label Preview</h2>
+            <div id="print-btn-wrapper">
+              <button class="btn-print" onclick="printLabel()">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+                  <rect x="6" y="14" width="12" height="8" rx="1"/>
+                </svg>
+                Print Label
+              </button>
+            </div>
+          </div>
+
+          <!-- ┌──────────────────────────────────────────────────┐
+               │       A6 LABEL CANVAS (105mm × 148mm)           │
+               └──────────────────────────────────────────────────┘ -->
+          <div class="label-wrapper">
+            <div id="label-canvas">
+
+              <!-- 1. Sender Address -->
+              <div class="label-sender">
+                <div class="company-name">Liwela GmbH</div>
+                <div>50472</div>
+                <div>Hansastraße 49</div>
+                <div>81373 München</div>
+              </div>
+
+              <!-- 2. Logistics Manifest -->
+              <div class="label-manifest">
+                <div class="pallet-title" id="lbl-display-title">—</div>
+                <div class="category-line" id="lbl-display-category">—</div>
+                <div class="item-list" id="lbl-display-items">
+                  <!-- Populated by JS -->
+                </div>
+              </div>
+
+              <!-- 3. SSCC / Order Index Grid -->
+              <div class="label-index-grid">
+                <div class="label-index-cell">
+                  <div class="cell-label">SSCC</div>
+                  <div class="cell-value sscc-value" id="lbl-display-sscc">—</div>
+                </div>
+                <div class="label-index-cell">
+                  <div class="cell-label">Order No.</div>
+                  <div class="cell-value order-value" id="lbl-display-order">—</div>
+                </div>
+              </div>
+
+              <!-- 4. Dual GS1-128 Barcodes -->
+              <div class="label-barcodes">
+                <!-- Top Barcode: Order Reference -->
+                <div class="barcode-section">
+                  <span class="barcode-label">Order Reference (400)</span>
+                  <svg id="barcode-order-ref"></svg>
+                  <span class="barcode-text" id="barcode-order-ref-text">(400)9202851073</span>
+                </div>
+                <!-- Bottom Barcode: SSCC (00) -->
+                <div class="barcode-section">
+                  <span class="barcode-label">SSCC Tracking (00)</span>
+                  <svg id="barcode-sscc-tag"></svg>
+                  <span class="barcode-text" id="barcode-sscc-text">(00)—</span>
+                </div>
+              </div>
+
+            </div><!-- #label-canvas -->
+          </div><!-- .label-wrapper -->
+
+        </div><!-- right col -->
+      </div><!-- grid -->
+    </div><!-- max-w -->
+  </div><!-- main-workspace -->
+
+  <!-- Empty State (shown when no order loaded) -->
+  <div id="empty-state" class="flex flex-col items-center justify-center py-20 text-center px-6">
+    <div class="w-20 h-20 rounded-2xl flex items-center justify-center mb-6"
+         style="background: linear-gradient(135deg, rgba(79,70,229,0.2), rgba(56,189,248,0.1)); border: 1px solid rgba(99,102,241,0.3);">
+      <svg class="w-10 h-10 text-indigo-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5z"/>
+        <path d="M3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z"/>
+        <path d="M13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/>
+        <path d="M13.5 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z"/>
+      </svg>
+    </div>
+    <h2 class="text-xl font-bold text-slate-300 mb-2">No Order Loaded</h2>
+    <p class="text-slate-500 max-w-md">Enter a Sales Order (e.g. <code class="text-indigo-400 bg-slate-800 px-1 rounded">SO03404</code>) or Delivery reference above to fetch packing details and generate GS1 labels.</p>
+  </div>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
