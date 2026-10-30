@@ -36,9 +36,42 @@
   <div id="toast-container"></div>
 
   <!-- ╔══════════════════════════════════════════════════════════╗
+       ║   LOGIN MODAL OVERLAY                                    ║
+       ╚══════════════════════════════════════════════════════════╝ -->
+  <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md hidden">
+    <div class="glass-card max-w-sm w-full p-6 border border-indigo-500/30 shadow-2xl relative">
+      <div class="text-center mb-6">
+        <div class="w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-3 shadow-lg"
+             style="background: linear-gradient(135deg, #4f46e5, #38bdf8);">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M4 7h16M4 12h16M4 17h16M8 3v4M16 3v4M8 17v4M16 17v4"/>
+          </svg>
+        </div>
+        <h2 class="text-xl font-bold text-slate-100">GS1 Label Printer</h2>
+        <p class="text-xs text-slate-400 mt-1">Please sign in to access the system</p>
+      </div>
+
+      <form id="login-form" onsubmit="event.preventDefault(); submitLogin();" class="space-y-4">
+        <div>
+          <label class="form-label" for="login-username">Username</label>
+          <input type="text" id="login-username" class="form-input" required autocomplete="username" placeholder="Username" />
+        </div>
+        <div>
+          <label class="form-label" for="login-password">Password</label>
+          <input type="password" id="login-password" class="form-input" required autocomplete="current-password" placeholder="Password" />
+        </div>
+        <div id="login-error" class="text-xs text-red-400 hidden text-center"></div>
+        <button type="submit" id="login-submit-btn" class="btn-primary w-full justify-center py-2.5">
+          Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ╔══════════════════════════════════════════════════════════╗
        ║   APP HEADER                                             ║
        ╚══════════════════════════════════════════════════════════╝ -->
-  <header id="app-header" class="header-glow sticky top-0 z-50 px-6 py-4">
+  <header id="app-header" class="header-glow sticky top-0 z-40 px-6 py-4">
     <div class="max-w-screen-2xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
         <!-- Logo Icon -->
@@ -68,6 +101,16 @@
           </svg>
           Settings
         </button>
+        <!-- User Badge & Logout -->
+        <div id="user-pill" class="hidden items-center gap-2 pl-3 border-l border-slate-700">
+          <span id="user-display-name" class="text-xs font-mono text-indigo-300">admin</span>
+          <button id="logout-btn" class="btn-secondary text-xs py-1 px-2" onclick="logout()" title="Logout">
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+            Logout
+          </button>
+        </div>
       </div>
     </div>
   </header>

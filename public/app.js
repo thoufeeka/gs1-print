@@ -17,6 +17,129 @@
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════
+// §0  AUTHENTICATION (Simple .env credentials)
+// ═══════════════════════════════════════════════════════════════
+
+function getAuthHeaders() {
+  const token = sessionStorage.getItem('gs1_auth_token') || '';
+  return {
+    'Content-Type': 'application/json',
+    'x-auth-token': token,
+  };
+}
+
+function showLoginModal(show = true) {
+  const overlay = document.getElementById('login-overlay');
+  const userPill = document.getElementById('user-pill');
+  if (!overlay) return;
+
+  if (show) {
+    overlay.classList.remove('hidden');
+    if (userPill) {
+      userPill.classList.add('hidden');
+      userPill.classList.remove('flex');
+    }
+    setTimeout(() => document.getElementById('login-username')?.focus(), 100);
+  } else {
+    overlay.classList.add('hidden');
+    if (userPill) {
+      userPill.classList.remove('hidden');
+      userPill.classList.add('flex');
+    }
+  }
+}
+
+async function checkAuthStatus() {
+  const token = sessionStorage.getItem('gs1_auth_token');
+  if (!token) {
+    showLoginModal(true);
+    return false;
+  }
+
+  try {
+    const res = await fetch('/api/auth-check', {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setText('user-display-name', data.username || 'admin');
+      showLoginModal(false);
+      return true;
+    } else {
+      sessionStorage.removeItem('gs1_auth_token');
+      showLoginModal(true);
+      return false;
+    }
+  } catch (e) {
+    showLoginModal(true);
+    return false;
+  }
+}
+
+async function submitLogin() {
+  const usernameInput = document.getElementById('login-username');
+  const passwordInput = document.getElementById('login-password');
+  const errorEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-submit-btn');
+
+  const username = usernameInput?.value?.trim() || '';
+  const password = passwordInput?.value?.trim() || '';
+
+  if (!username || !password) {
+    if (errorEl) {
+      errorEl.textContent = 'Please enter both username and password.';
+      errorEl.classList.remove('hidden');
+    }
+    return;
+  }
+
+  if (errorEl) errorEl.classList.add('hidden');
+  setButtonLoading(btn, true, 'Signing in…');
+
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Invalid credentials.');
+    }
+
+    sessionStorage.setItem('gs1_auth_token', data.token);
+    setText('user-display-name', data.username || username);
+    showLoginModal(false);
+    showToast(`Signed in as ${data.username || username}`, 'success');
+
+    // Load configuration & test connection now that we are authenticated
+    await loadConfig();
+
+  } catch (err) {
+    if (errorEl) {
+      errorEl.textContent = err.message || 'Login failed.';
+      errorEl.classList.remove('hidden');
+    }
+  } finally {
+    setButtonLoading(btn, false, '', 'Sign In');
+  }
+}
+
+async function logout() {
+  try {
+    await fetch('/api/logout', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+  } catch (_) {}
+
+  sessionStorage.removeItem('gs1_auth_token');
+  showLoginModal(true);
+  showToast('Logged out.', 'info');
+}
+
+// ═══════════════════════════════════════════════════════════════
 // §1  APPLICATION STATE
 // ═══════════════════════════════════════════════════════════════
 
@@ -141,7 +264,11 @@ function nextSSCC() {
 
 async function loadConfig() {
   try {
-    const res = await fetch('/api/config');
+    const res = await fetch('/api/config', { headers: getAuthHeaders() });
+    if (res.status === 401) {
+      showLoginModal(true);
+      return;
+    }
     if (!res.ok) throw new Error('Config fetch failed');
     const data = await res.json();
 
@@ -171,9 +298,16 @@ async function loadConfig() {
     updateApiStatus(true, data.api_key_set, 'Connecting...');
 
     if (data.api_key_set) {
-      fetch('/api/test-connection')
-        .then(r => r.json())
+      fetch('/api/test-connection', { headers: getAuthHeaders() })
+        .then(r => {
+          if (r.status === 401) {
+            showLoginModal(true);
+            return null;
+          }
+          return r.json();
+        })
         .then(conn => {
+          if (!conn) return;
           if (conn.success) {
             updateApiStatus(true, true, 'Odoo 19 Ready');
           } else {
@@ -304,9 +438,14 @@ async function fetchOrder() {
   try {
     const res = await fetch('/api/fetch-order', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ order_id: orderId }),
     });
+
+    if (res.status === 401) {
+      showLoginModal(true);
+      throw new Error('Session expired or unauthorized. Please sign in.');
+    }
 
     const data = await res.json();
 
@@ -850,8 +989,6 @@ function showToast(message, type = 'info', duration = 3500) {
 // ═══════════════════════════════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await loadConfig();
-
   // Render empty barcodes with default values
   State.label.orderRef = '9202851073';
   renderAllBarcodes();
@@ -869,4 +1006,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   console.log('%c🏷 GS1 Label Printer Ready', 'color:#6366f1; font-size:14px; font-weight:bold;');
   console.log('  SSCC Engine test:', demoSSCC, '(', demoSSCC.length, 'digits)');
+
+  // Check authentication status
+  const isAuth = await checkAuthStatus();
+  if (isAuth) {
+    await loadConfig();
+  }
 });

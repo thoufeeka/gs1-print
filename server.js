@@ -39,8 +39,54 @@ const odooCall = async (model, method, payload = {}) => {
   });
 };
 
+// ─── Simple Application Authentication ───────────────────────────────────────
+const validTokens = new Set();
+
+const getAppCredentials = () => ({
+  username: (process.env.APP_USERNAME || 'admin').trim(),
+  password: (process.env.APP_PASSWORD || 'admin').trim(),
+});
+
+// POST /api/login
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body || {};
+  const creds = getAppCredentials();
+
+  if (username && password && String(username).trim() === creds.username && String(password).trim() === creds.password) {
+    const token = 'gs1_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+    validTokens.add(token);
+    return res.json({ success: true, token, username: creds.username });
+  }
+  return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+});
+
+// GET /api/auth-check
+app.get('/api/auth-check', (req, res) => {
+  const token = (req.headers['x-auth-token'] || req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim();
+  if (token && validTokens.has(token)) {
+    return res.json({ authenticated: true, username: getAppCredentials().username });
+  }
+  return res.status(401).json({ authenticated: false });
+});
+
+// POST /api/logout
+app.post('/api/logout', (req, res) => {
+  const token = (req.headers['x-auth-token'] || req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim();
+  if (token) validTokens.delete(token);
+  return res.json({ success: true });
+});
+
+// Middleware for protected routes
+const requireAuth = (req, res, next) => {
+  const token = (req.headers['x-auth-token'] || req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim();
+  if (token && validTokens.has(token)) {
+    return next();
+  }
+  return res.status(401).json({ error: 'Unauthorized. Please sign in.' });
+};
+
 // ─── GET /api/test-connection ────────────────────────────────────────────────
-app.get('/api/test-connection', async (req, res) => {
+app.get('/api/test-connection', requireAuth, async (req, res) => {
   try {
     const testResp = await odooCall('res.partner', 'search_read', {
       domain: [],
@@ -65,7 +111,7 @@ app.get('/api/test-connection', async (req, res) => {
 });
 
 // ─── POST /api/fetch-order ────────────────────────────────────────────────────
-app.post('/api/fetch-order', async (req, res) => {
+app.post('/api/fetch-order', requireAuth, async (req, res) => {
   const { order_id } = req.body;
   if (!order_id || typeof order_id !== 'string') {
     return res.status(400).json({ error: 'order_id is required and must be a string.' });
@@ -236,7 +282,7 @@ app.post('/api/fetch-order', async (req, res) => {
 
 // ─── POST /api/barcode ───────────────────────────────────────────────────────
 // Server-side barcode rendering — returns a PNG buffer
-app.post('/api/barcode', async (req, res) => {
+app.post('/api/barcode', requireAuth, async (req, res) => {
   const { text, type = 'code128', scale = 2, height = 15 } = req.body;
 
   if (!text) return res.status(400).json({ error: 'text is required.' });
@@ -260,7 +306,7 @@ app.post('/api/barcode', async (req, res) => {
 });
 
 // ─── GET /api/config ─────────────────────────────────────────────────────────
-app.get('/api/config', (req, res) => {
+app.get('/api/config', requireAuth, (req, res) => {
   const apiKey   = (process.env.ODOO_API_KEY || '').replace(/^"|"$/g, '').trim();
   const db       = (process.env.ODOO_DB || '').trim();
   const url      = (process.env.ODOO_URL || '').replace(/\/+$/, '');
