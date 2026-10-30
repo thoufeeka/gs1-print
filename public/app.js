@@ -354,17 +354,17 @@ function updateApiStatus(connected, apiKeySet, customText) {
   const text = document.getElementById('status-text');
 
   if (connected && apiKeySet) {
-    dot.className  = 'w-2 h-2 rounded-full bg-emerald-400';
+    dot.className  = 'w-2 h-2 rounded-full bg-emerald-500';
     text.textContent = customText || 'Odoo 19 Ready';
-    text.className = 'text-emerald-400';
+    text.className = 'text-emerald-700 font-medium';
   } else if (connected && !apiKeySet) {
-    dot.className  = 'w-2 h-2 rounded-full bg-yellow-400';
+    dot.className  = 'w-2 h-2 rounded-full bg-amber-500';
     text.textContent = customText || 'No API Key';
-    text.className = 'text-yellow-400';
+    text.className = 'text-amber-700 font-medium';
   } else {
-    dot.className  = 'w-2 h-2 rounded-full bg-red-400';
+    dot.className  = 'w-2 h-2 rounded-full bg-rose-500';
     text.textContent = customText || 'Offline';
-    text.className = 'text-red-400';
+    text.className = 'text-rose-700 font-medium';
   }
 }
 
@@ -532,10 +532,10 @@ function renderOrderLinesTable() {
     return `
       <tr>
         <td>
-          <div class="font-medium text-slate-200 text-xs leading-tight">${escapeHtml(line.product_name)}</div>
+          <div class="font-medium text-slate-800 text-xs leading-tight">${escapeHtml(line.product_name)}</div>
           ${line.product_ref ? `<div class="text-slate-500 text-xs">[${escapeHtml(line.product_ref)}]</div>` : ''}
         </td>
-        <td class="barcode-cell">${line.barcode ? escapeHtml(line.barcode) : '<span class="text-slate-600 italic">—</span>'}</td>
+        <td class="barcode-cell">${line.barcode ? escapeHtml(line.barcode) : '<span class="text-slate-400 italic">—</span>'}</td>
         <td class="qty-cell">${maxQty}</td>
         <td>
           <input type="number"
@@ -657,9 +657,9 @@ function renderPalletTabs() {
 
     return `
       <div class="pallet-card p-3 min-w-32 ${isActive ? 'active' : ''}" onclick="selectPallet(${i})">
-        <div class="text-xs font-bold text-slate-200 mb-1">📦 Pallet ${p.id}</div>
-        <div class="text-xs text-indigo-300 font-mono">${totalBoxes} items</div>
-        <div class="text-xs text-slate-600 font-mono truncate mt-1" title="${p.sscc}">${p.sscc.slice(0, 10)}…</div>
+        <div class="text-xs font-bold text-slate-800 mb-1">📦 Pallet ${p.id}</div>
+        <div class="text-xs text-blue-600 font-semibold font-mono">${totalBoxes} items</div>
+        <div class="text-xs text-slate-500 font-mono truncate mt-1" title="${p.sscc}">${p.sscc.slice(0, 10)}…</div>
         <div class="flex gap-1 mt-2">
           <button class="btn-danger text-xs py-0.5 px-1.5" onclick="event.stopPropagation(); deletePallet(${i})">✕</button>
         </div>
@@ -712,7 +712,7 @@ function refreshPalletSummary() {
     return `
       <div class="flex items-center justify-between glass-card-light px-3 py-2">
         <div>
-          <div class="text-sm font-medium text-slate-200">${escapeHtml(line.product_name)}</div>
+          <div class="text-sm font-medium text-slate-800">${escapeHtml(line.product_name)}</div>
           ${line.barcode ? `<div class="text-xs font-mono text-slate-500">${escapeHtml(line.barcode)}</div>` : ''}
         </div>
         <div class="qty-cell text-sm">${e.qty}</div>
@@ -827,7 +827,7 @@ function renderItemDescInputs(items) {
              value="${escapeHtml(item.descOverride || item.productName)}"
              placeholder="${escapeHtml(item.productName)}"
              oninput="onCustomizerChange()" />
-      <span class="text-xs font-mono text-cyan-400 whitespace-nowrap">${item.qtyText}</span>
+      <span class="text-xs font-mono text-blue-600 font-medium whitespace-nowrap">${item.qtyText}</span>
     </div>
   `).join('');
 }
