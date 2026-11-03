@@ -49,6 +49,35 @@ function showLoginModal(show = true) {
   }
 }
 
+function applyUserRoleUI(username, role = 'user') {
+  const isAdmin = role === 'admin';
+  State.user = { username: username || 'user', role: isAdmin ? 'admin' : 'user' };
+
+  const nameEl = document.getElementById('user-display-name');
+  if (nameEl) {
+    nameEl.innerHTML = `${escapeHtml(State.user.username)} <span class="badge ${isAdmin ? 'badge-assigned' : 'badge-draft'} ml-1">${isAdmin ? 'ADMIN' : 'USER'}</span>`;
+  }
+
+  // Only Admin can view or toggle the Settings tray & Serial Override
+  const settingsBtn = document.getElementById('settings-toggle-btn');
+  const settingsPanel = document.getElementById('settings-panel');
+  const settingsTray = document.getElementById('settings-tray');
+
+  if (settingsBtn) {
+    if (isAdmin) {
+      settingsBtn.classList.remove('hidden');
+    } else {
+      settingsBtn.classList.add('hidden');
+    }
+  }
+  if (!isAdmin) {
+    if (settingsTray) settingsTray.classList.remove('open');
+    if (settingsPanel) settingsPanel.classList.add('hidden');
+  } else if (settingsPanel) {
+    settingsPanel.classList.remove('hidden');
+  }
+}
+
 async function checkAuthStatus() {
   const token = sessionStorage.getItem('gs1_auth_token');
   if (!token) {
@@ -62,7 +91,7 @@ async function checkAuthStatus() {
     });
     if (res.ok) {
       const data = await res.json();
-      setText('user-display-name', data.username || 'admin');
+      applyUserRoleUI(data.username || 'admin', data.role || 'user');
       showLoginModal(false);
       return true;
     } else {
@@ -109,9 +138,9 @@ async function submitLogin() {
     }
 
     sessionStorage.setItem('gs1_auth_token', data.token);
-    setText('user-display-name', data.username || username);
+    applyUserRoleUI(data.username || username, data.role || 'user');
     showLoginModal(false);
-    showToast(`Signed in as ${data.username || username}`, 'success');
+    showToast(`Signed in as ${data.username || username} (${(data.role || 'user').toUpperCase()})`, 'success');
 
     // Load configuration & test connection now that we are authenticated
     await loadConfig();
@@ -244,18 +273,140 @@ function buildSSCC(extensionDigit, gs1Prefix, serialNumber) {
 }
 
 /**
- * Generate the next SSCC using current State config and increment the counter.
+ * Generate the next local SSCC using current State config and increment the counter,
+ * ensuring it has never been used in localStorage history.
  * @returns {string}
  */
 function nextSSCC() {
-  const sscc = buildSSCC(
+  const savedLast = parseInt(localStorage.getItem('gs1_last_serial') || '0', 10);
+  if (savedLast >= State.nextSerial) {
+    State.nextSerial = savedLast + 1;
+  }
+
+  let usedSet = new Set();
+  try {
+    const raw = JSON.parse(localStorage.getItem('gs1_used_ssccs') || '[]');
+    if (Array.isArray(raw)) usedSet = new Set(raw);
+  } catch (_) {}
+
+  // Also include any SSCCs currently on active pallets
+  (State.pallets || []).forEach(p => {
+    if (p?.sscc) usedSet.add(p.sscc);
+  });
+
+  let sscc = buildSSCC(
     State.config.extension_digit,
     State.config.gs1_company_prefix,
     State.nextSerial
   );
+
+  while (usedSet.has(sscc)) {
+    State.nextSerial++;
+    sscc = buildSSCC(
+      State.config.extension_digit,
+      State.config.gs1_company_prefix,
+      State.nextSerial
+    );
+  }
+
+  localStorage.setItem('gs1_last_serial', String(State.nextSerial));
+  usedSet.add(sscc);
+  try {
+    localStorage.setItem('gs1_used_ssccs', JSON.stringify([...usedSet].slice(-2000)));
+  } catch (_) {}
+
   State.nextSerial++;
+  setText('cfg-sscc-serial', State.nextSerial);
+  const overrideInput = document.getElementById('serial-override-input');
+  if (overrideInput) overrideInput.value = State.nextSerial;
   updateSettingsPreview();
   return sscc;
+}
+
+/**
+ * Allocate a guaranteed-unique SSCC from the backend (Supabase atomic sequence + registry)
+ * with instant local fallback.
+ */
+async function allocateUniqueSSCC(orderId = '', palletId = null) {
+  try {
+    const res = await fetch('/api/sscc/allocate', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ order_id: orderId, pallet_id: palletId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.sscc && data.sscc.length === 18) {
+        if (Number.isFinite(data.serial)) {
+          localStorage.setItem('gs1_last_serial', String(data.serial));
+          State.nextSerial = Math.max(State.nextSerial, data.serial + 1);
+          setText('cfg-sscc-serial', State.nextSerial);
+          const overrideInput = document.getElementById('serial-override-input');
+          if (overrideInput) overrideInput.value = State.nextSerial;
+          updateSettingsPreview();
+        }
+        try {
+          const used = new Set(JSON.parse(localStorage.getItem('gs1_used_ssccs') || '[]'));
+          used.add(data.sscc);
+          localStorage.setItem('gs1_used_ssccs', JSON.stringify([...used].slice(-2000)));
+        } catch (_) {}
+        return data.sscc;
+      }
+    }
+  } catch (err) {
+    console.warn('[SSCC] Server allocation fallback to local:', err.message);
+  }
+  return nextSSCC();
+}
+
+// ─── Order & Pallet State Persistence (Supabase + Local Backup) ──────────────
+let saveStateTimer = null;
+
+function getOrderStorageKey(orderData = State.order) {
+  if (!orderData) return '';
+  const key = (orderData.sale_order || orderData.order_id || '').trim().toUpperCase();
+  return key ? `gs1_order_state_${key}` : '';
+}
+
+function scheduleSaveOrderState() {
+  if (!State.order) return;
+  // Save immediately to localStorage for zero-latency recovery
+  try {
+    const localKey = getOrderStorageKey();
+    if (localKey) {
+      localStorage.setItem(localKey, JSON.stringify({
+        order_id: State.order.order_id,
+        sale_order: State.order.sale_order,
+        pallets: State.pallets,
+        active_pallet_index: State.activePalletIndex,
+        updated_at: new Date().toISOString(),
+      }));
+    }
+  } catch (_) {}
+
+  // Debounce cloud database save (350ms)
+  if (saveStateTimer) clearTimeout(saveStateTimer);
+  saveStateTimer = setTimeout(() => {
+    saveOrderStateNow();
+  }, 350);
+}
+
+async function saveOrderStateNow() {
+  if (!State.order) return;
+  try {
+    await fetch('/api/order-state', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        order_id: State.order.order_id,
+        sale_order: State.order.sale_order,
+        pallets: State.pallets,
+        active_pallet_index: State.activePalletIndex,
+      }),
+    });
+  } catch (err) {
+    console.warn('[OrderState] Cloud sync warning:', err.message);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -336,11 +487,26 @@ function updateSettingsPreview() {
   }
 }
 
+let serialOverrideTimer = null;
+
 function updateSerialOverride(val) {
+  if (State.user?.role !== 'admin') return;
   const n = parseInt(val, 10);
-  if (!isNaN(n) && n >= 0) {
+  if (!isNaN(n) && n >= 1) {
     State.nextSerial = n;
+    setText('cfg-sscc-serial', n);
     updateSettingsPreview();
+
+    if (serialOverrideTimer) clearTimeout(serialOverrideTimer);
+    serialOverrideTimer = setTimeout(async () => {
+      try {
+        await fetch('/api/sscc/set-serial', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ next_serial: n }),
+        });
+      } catch (_) {}
+    }, 500);
   }
 }
 
@@ -468,7 +634,7 @@ async function fetchOrder() {
     }
 
     // Initialize workspace
-    initWorkspace(data);
+    await initWorkspace(data);
     showToast(`Loaded ${data.move_lines.length} line(s) for ${data.order_id}`, 'success');
 
   } catch (err) {
@@ -488,7 +654,7 @@ async function fetchOrder() {
 // §6  ORDER LINES TABLE
 // ═══════════════════════════════════════════════════════════════
 
-function initWorkspace(data) {
+async function initWorkspace(data) {
   // Show workspace, hide empty state
   document.getElementById('main-workspace').classList.remove('hidden');
   document.getElementById('empty-state').classList.add('hidden');
@@ -504,13 +670,36 @@ function initWorkspace(data) {
   statusEl.className = `badge ${badgeClass}`;
   statusEl.textContent = state.toUpperCase();
 
-  // Render lines table
-  renderOrderLinesTable();
+  // Check if saved pallet & customizer state exists in Supabase or localStorage
+  let savedState = data.saved_state || null;
+  if (!savedState || !Array.isArray(savedState.pallets) || savedState.pallets.length === 0) {
+    try {
+      const localRaw = localStorage.getItem(getOrderStorageKey(data));
+      if (localRaw) {
+        const parsed = JSON.parse(localRaw);
+        if (parsed && Array.isArray(parsed.pallets) && parsed.pallets.length > 0) {
+          savedState = parsed;
+        }
+      }
+    } catch (_) {}
+  }
 
-  // Auto-create pallet 1
+  if (savedState && Array.isArray(savedState.pallets) && savedState.pallets.length > 0) {
+    State.pallets = savedState.pallets.map(p => ensurePalletCustomizer(p));
+    State.activePalletIndex = Math.max(0, Math.min(savedState.active_pallet_index ?? 0, State.pallets.length - 1));
+    renderPalletTabs();
+    renderOrderLinesTable();
+    refreshPalletSummary();
+    autoUpdateCustomizerFromPallet();
+    showToast(`Restored ${State.pallets.length} saved pallet(s) for ${data.sale_order || data.order_id}`, 'info');
+    return;
+  }
+
+  // Render lines table & auto-create pallet 1 for fresh order
+  renderOrderLinesTable();
   State.pallets = [];
   State.activePalletIndex = -1;
-  addNewPallet();
+  await addNewPallet();
 }
 
 function renderOrderLinesTable() {
@@ -577,8 +766,10 @@ function onSplitChange(lineIdx, value) {
   }
   pallet.lines[lineIdx].qty = qty;
 
+  renderPalletTabs();
   refreshPalletSummary();
   autoUpdateCustomizerFromPallet();
+  scheduleSaveOrderState();
 }
 
 function setFullQty(lineIdx) {
@@ -602,19 +793,59 @@ function setFullQty(lineIdx) {
  *   label: string,
  *   sscc: string,
  *   lines: { [lineIdx]: { lineIdx, qty } },
+ *   customizer: {
+ *     palletTitle: string,
+ *     isCustomTitle: boolean,
+ *     category: string,
+ *     orderNumber: string,
+ *     isCustomOrderNo: boolean,
+ *     itemOverrides: { [lineIdx]: string }
+ *   }
  * }
  */
 
-function addNewPallet() {
+function ensurePalletCustomizer(pallet) {
+  if (!pallet) return pallet;
+  if (!pallet.customizer || typeof pallet.customizer !== 'object') {
+    pallet.customizer = {
+      palletTitle: '',
+      isCustomTitle: false,
+      category: 'Mixed Goods Shipment',
+      orderNumber: '',
+      isCustomOrderNo: false,
+      itemOverrides: {},
+    };
+  }
+  if (!pallet.customizer.itemOverrides || typeof pallet.customizer.itemOverrides !== 'object') {
+    pallet.customizer.itemOverrides = {};
+  }
+  return pallet;
+}
+
+function getDefaultPalletTitle(pallet) {
+  const orderId = State.order?.order_id || '';
+  const displayOrderNo = State.order?.sale_order || orderId;
+  const shortId = displayOrderNo.replace(/^SO/, 'S');
+  const totalBoxes = Object.values(pallet?.lines || {}).reduce((sum, l) => sum + (l.qty || 0), 0);
+  return `${shortId} - Pallet ${pallet?.id || 1} - ${totalBoxes} boxes`;
+}
+
+async function addNewPallet() {
   if (!State.order) {
     showToast('Load an order first.', 'error');
     return;
   }
 
-  const id    = State.pallets.length + 1;
-  const sscc  = nextSSCC();
+  // Save current pallet's customizer edits before switching
+  if (State.activePalletIndex >= 0 && State.pallets[State.activePalletIndex]) {
+    onCustomizerChange(false);
+  }
+
+  const maxId = State.pallets.reduce((max, p) => Math.max(max, p.id || 0), 0);
+  const id    = maxId + 1;
   const rawOrder = State.order.sale_order || State.order.order_id || '';
   const orderId = rawOrder.replace(/^SO/, 'S');
+  const sscc  = await allocateUniqueSSCC(rawOrder, id);
 
   // If this is the first pallet, auto-assign all order lines with their full quantity
   const initialLines = {};
@@ -627,12 +858,12 @@ function addNewPallet() {
     });
   }
 
-  const pallet = {
+  const pallet = ensurePalletCustomizer({
     id,
     label: `${orderId} - Pallet ${id}`,
     sscc,
     lines: initialLines,
-  };
+  });
 
   State.pallets.push(pallet);
   State.activePalletIndex = State.pallets.length - 1;
@@ -641,6 +872,7 @@ function addNewPallet() {
   renderOrderLinesTable();
   refreshPalletSummary();
   autoUpdateCustomizerFromPallet();
+  scheduleSaveOrderState();
 
   showToast(`Pallet ${id} created (SSCC: ${sscc})`, 'success');
 }
@@ -653,7 +885,7 @@ function renderPalletTabs() {
 
   container.innerHTML = State.pallets.map((p, i) => {
     const isActive = i === State.activePalletIndex;
-    const totalBoxes = Object.values(p.lines).reduce((sum, l) => sum + (l.qty || 0), 0);
+    const totalBoxes = Object.values(p.lines || {}).reduce((sum, l) => sum + (l.qty || 0), 0);
 
     return `
       <div class="pallet-card p-3 min-w-32 ${isActive ? 'active' : ''}" onclick="selectPallet(${i})">
@@ -669,11 +901,16 @@ function renderPalletTabs() {
 }
 
 function selectPallet(index) {
+  // Save edits on the currently active pallet before switching
+  if (State.activePalletIndex >= 0 && State.activePalletIndex !== index && State.pallets[State.activePalletIndex]) {
+    onCustomizerChange(false);
+  }
   State.activePalletIndex = index;
   renderPalletTabs();
   renderOrderLinesTable();
   refreshPalletSummary();
   autoUpdateCustomizerFromPallet();
+  scheduleSaveOrderState();
 }
 
 function deletePallet(index) {
@@ -690,6 +927,7 @@ function deletePallet(index) {
   renderOrderLinesTable();
   refreshPalletSummary();
   autoUpdateCustomizerFromPallet();
+  scheduleSaveOrderState();
 }
 
 function refreshPalletSummary() {
@@ -700,7 +938,7 @@ function refreshPalletSummary() {
   }
 
   const pallet = State.pallets[State.activePalletIndex];
-  const entries = Object.values(pallet.lines).filter(l => l.qty > 0);
+  const entries = Object.values(pallet.lines || {}).filter(l => l.qty > 0);
 
   if (!entries.length) {
     container.innerHTML = '<p class="text-slate-500 text-sm">No items assigned. Use the "Pallet Qty" column to assign quantities.</p>';
@@ -709,6 +947,7 @@ function refreshPalletSummary() {
 
   container.innerHTML = entries.map(e => {
     const line = State.moveLines[e.lineIdx];
+    if (!line) return '';
     return `
       <div class="flex items-center justify-between glass-card-light px-3 py-2">
         <div>
@@ -722,44 +961,50 @@ function refreshPalletSummary() {
 }
 
 /**
- * Auto-populate customizer fields from the active pallet state.
+ * Populate customizer fields from the active pallet's stored customizer state
+ * (preserving any custom user edits made on this pallet).
  */
 function autoUpdateCustomizerFromPallet() {
   if (State.activePalletIndex < 0) return;
-  const pallet  = State.pallets[State.activePalletIndex];
+  const pallet = ensurePalletCustomizer(State.pallets[State.activePalletIndex]);
   if (!pallet) return;
 
   const orderId = State.order?.order_id || '';
-  const displayOrderNo = State.order?.sale_order || orderId;
-  const shortId = displayOrderNo.replace(/^SO/, 'S');
+  const defaultOrderNo = State.order?.sale_order || orderId;
+  const defaultTitle = getDefaultPalletTitle(pallet);
 
-  const totalBoxes = Object.values(pallet.lines || {}).reduce((sum, l) => sum + (l.qty || 0), 0);
-  const palletTitle = `${shortId} - Pallet ${pallet.id} - ${totalBoxes} boxes`;
+  const palletTitle = (pallet.customizer.isCustomTitle && pallet.customizer.palletTitle)
+    ? pallet.customizer.palletTitle
+    : defaultTitle;
+
+  const displayOrderNo = (pallet.customizer.isCustomOrderNo && pallet.customizer.orderNumber)
+    ? pallet.customizer.orderNumber
+    : defaultOrderNo;
+
+  const categoryVal = pallet.customizer.category || 'Mixed Goods Shipment';
 
   // Update customizer DOM inputs
   setInputValue('lbl-pallet-title', palletTitle);
   setInputValue('lbl-order-number', displayOrderNo);
   setInputValue('lbl-sscc', pallet.sscc);
-
-  const catInput = document.getElementById('lbl-category');
-  const categoryVal = catInput?.value?.trim() || 'Mixed Goods Shipment';
   setInputValue('lbl-category', categoryVal);
 
   if (State.order?.client_order_ref) {
     State.label.orderRef = State.order.client_order_ref;
   }
 
-  // Build items list for customizer
+  // Build items list for customizer, restoring per-pallet itemOverrides by lineIdx
   const items = Object.values(pallet.lines || {})
     .filter(l => l.qty > 0)
     .map(e => {
       const line = State.moveLines[e.lineIdx] || {};
-      const existing = State.label.items?.find(it => it.productName === (line.product_name || ''));
+      const savedOverride = pallet.customizer.itemOverrides?.[e.lineIdx];
       return {
+        lineIdx: e.lineIdx,
         gtin: line.barcode || '',
         productName: line.product_name || '',
         qtyText: `${e.qty} pcs`,
-        descOverride: existing?.descOverride || '',
+        descOverride: savedOverride !== undefined ? savedOverride : (line.product_name || ''),
       };
     });
 
@@ -775,7 +1020,8 @@ function autoUpdateCustomizerFromPallet() {
 
 function commitPalletContents() {
   autoUpdateCustomizerFromPallet();
-  showToast('Label preview updated.', 'success');
+  scheduleSaveOrderState();
+  showToast('Label preview updated & saved.', 'success');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -784,18 +1030,18 @@ function commitPalletContents() {
 
 /**
  * Called whenever any customizer input changes.
- * Reads all fields → updates State.label → syncs preview.
+ * Reads all fields → saves into active pallet's customizer state → updates State.label → syncs preview.
  */
-function onCustomizerChange() {
-  State.label.palletTitle  = (document.getElementById('lbl-pallet-title')?.value || '').trim();
-  State.label.category     = (document.getElementById('lbl-category')?.value || '').trim();
-  State.label.orderNumber  = (document.getElementById('lbl-order-number')?.value || '').trim();
-  State.label.sscc         = (document.getElementById('lbl-sscc')?.value || '').trim();
+function onCustomizerChange(shouldPersist = true) {
+  const titleVal   = (document.getElementById('lbl-pallet-title')?.value || '').trim();
+  const catVal     = (document.getElementById('lbl-category')?.value || '').trim();
+  const orderNoVal = (document.getElementById('lbl-order-number')?.value || '').trim();
+  const ssccVal    = (document.getElementById('lbl-sscc')?.value || '').trim();
 
-  // Sync SSCC to active pallet
-  if (State.activePalletIndex >= 0 && State.pallets[State.activePalletIndex]) {
-    State.pallets[State.activePalletIndex].sscc = State.label.sscc;
-  }
+  State.label.palletTitle = titleVal;
+  State.label.category    = catVal;
+  State.label.orderNumber = orderNoVal;
+  State.label.sscc        = ssccVal;
 
   // Read item desc overrides
   if (Array.isArray(State.label.items)) {
@@ -805,7 +1051,44 @@ function onCustomizerChange() {
     });
   }
 
+  // Persist customizer edits onto the active pallet object so switching pallets never loses edits
+  if (State.activePalletIndex >= 0 && State.pallets[State.activePalletIndex]) {
+    const pallet = ensurePalletCustomizer(State.pallets[State.activePalletIndex]);
+    pallet.sscc = ssccVal;
+
+    const defaultTitle = getDefaultPalletTitle(pallet);
+    if (titleVal && titleVal !== defaultTitle) {
+      pallet.customizer.isCustomTitle = true;
+      pallet.customizer.palletTitle = titleVal;
+    } else if (!titleVal || titleVal === defaultTitle) {
+      pallet.customizer.isCustomTitle = false;
+      pallet.customizer.palletTitle = defaultTitle;
+    }
+
+    const defaultOrderNo = State.order?.sale_order || State.order?.order_id || '';
+    if (orderNoVal && orderNoVal !== defaultOrderNo) {
+      pallet.customizer.isCustomOrderNo = true;
+      pallet.customizer.orderNumber = orderNoVal;
+    } else {
+      pallet.customizer.isCustomOrderNo = false;
+      pallet.customizer.orderNumber = defaultOrderNo;
+    }
+
+    pallet.customizer.category = catVal || 'Mixed Goods Shipment';
+
+    if (Array.isArray(State.label.items)) {
+      State.label.items.forEach(item => {
+        if (item.lineIdx !== undefined) {
+          pallet.customizer.itemOverrides[item.lineIdx] = item.descOverride;
+        }
+      });
+    }
+  }
+
   syncLabelPreview();
+  if (shouldPersist) {
+    scheduleSaveOrderState();
+  }
 }
 
 /**
@@ -873,18 +1156,22 @@ function syncLabelPreview() {
   renderAllBarcodes();
 }
 
-function regenerateSSCC() {
-  const sscc = nextSSCC();
+async function regenerateSSCC() {
+  const rawOrder = State.order?.sale_order || State.order?.order_id || '';
+  const activePallet = State.activePalletIndex >= 0 ? State.pallets[State.activePalletIndex] : null;
+  const sscc = await allocateUniqueSSCC(rawOrder, activePallet?.id || null);
 
   // Assign to active pallet
-  if (State.activePalletIndex >= 0 && State.pallets[State.activePalletIndex]) {
-    State.pallets[State.activePalletIndex].sscc = sscc;
+  if (activePallet) {
+    activePallet.sscc = sscc;
   }
 
   setInputValue('lbl-sscc', sscc);
   State.label.sscc = sscc;
+  renderPalletTabs();
   syncLabelPreview();
-  showToast(`New SSCC: ${sscc}`, 'info');
+  scheduleSaveOrderState();
+  showToast(`New unique SSCC allocated: ${sscc}`, 'info');
 }
 
 // ═══════════════════════════════════════════════════════════════
