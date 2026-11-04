@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GS1 Pallet Label Printer - Liwela</title>
-  <meta name="description" content="Professional GS1-128 A6 pallet logistics label generator with live Odoo 19 integration, SSCC calculation, and thermal print automation." />
+  <meta name="description"
+    content="Professional GS1-128 A6 pallet logistics label generator with live Odoo 19 integration, SSCC calculation, and thermal print automation." />
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -38,12 +40,14 @@
   <!-- ╔══════════════════════════════════════════════════════════╗
        ║   LOGIN MODAL OVERLAY                                    ║
        ╚══════════════════════════════════════════════════════════╝ -->
-  <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm hidden">
+  <div id="login-overlay"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm hidden">
     <div class="glass-card max-w-sm w-full p-6 shadow-xl relative">
       <div class="text-center mb-6">
-        <div class="w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-3 bg-blue-600 text-white shadow-md">
+        <div
+          class="w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-3 bg-blue-600 text-white shadow-md">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M4 7h16M4 12h16M4 17h16M8 3v4M16 3v4M8 17v4M16 17v4"/>
+            <path d="M4 7h16M4 12h16M4 17h16M8 3v4M16 3v4M8 17v4M16 17v4" />
           </svg>
         </div>
         <h2 class="text-xl font-bold text-slate-900">GS1 Pallet Label Printer - Liwela</h2>
@@ -53,11 +57,13 @@
       <form id="login-form" onsubmit="event.preventDefault(); submitLogin();" class="space-y-4">
         <div>
           <label class="form-label" for="login-username">Username</label>
-          <input type="text" id="login-username" class="form-input" required autocomplete="username" placeholder="Username" />
+          <input type="text" id="login-username" class="form-input" required autocomplete="username"
+            placeholder="Username" />
         </div>
         <div>
           <label class="form-label" for="login-password">Password</label>
-          <input type="password" id="login-password" class="form-input" required autocomplete="current-password" placeholder="Password" />
+          <input type="password" id="login-password" class="form-input" required autocomplete="current-password"
+            placeholder="Password" />
         </div>
         <div id="login-error" class="text-xs text-red-600 hidden text-center font-medium"></div>
         <button type="submit" id="login-submit-btn" class="btn-primary w-full justify-center py-2.5">
@@ -76,7 +82,7 @@
         <!-- Logo Icon -->
         <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-blue-600 text-white shadow-sm">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M4 7h16M4 12h16M4 17h16M8 3v4M16 3v4M8 17v4M16 17v4"/>
+            <path d="M4 7h16M4 12h16M4 17h16M8 3v4M16 3v4M8 17v4M16 17v4" />
           </svg>
         </div>
         <div>
@@ -94,8 +100,9 @@
         <!-- Settings Toggle -->
         <button id="settings-toggle-btn" class="btn-secondary" onclick="toggleSettings()">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-            <circle cx="12" cy="12" r="3"/>
+            <path
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <circle cx="12" cy="12" r="3" />
           </svg>
           Settings
         </button>
@@ -103,8 +110,9 @@
         <div id="user-pill" class="hidden items-center gap-2 pl-3 border-l border-slate-200">
           <span id="user-display-name" class="text-xs font-mono text-slate-700 font-semibold">admin</span>
           <button id="logout-btn" class="btn-secondary text-xs py-1 px-2" onclick="logout()" title="Logout">
-            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2"
+              viewBox="0 0 24 24">
+              <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
             Logout
           </button>
@@ -152,9 +160,8 @@
             <div id="cfg-sscc-preview" class="text-sm font-mono text-blue-900 font-bold tracking-wider">—</div>
             <div class="ml-auto">
               <label class="form-label whitespace-nowrap mb-0 inline mr-2">Serial Override</label>
-              <input type="number" id="serial-override-input"
-                     class="split-input w-28" min="1" placeholder="e.g. 1000"
-                     oninput="updateSerialOverride(this.value)" />
+              <input type="number" id="serial-override-input" class="split-input w-28" min="1" placeholder="e.g. 1000"
+                oninput="updateSerialOverride(this.value)" />
             </div>
           </div>
         </div>
@@ -172,17 +179,16 @@
         <div class="relative flex-1">
           <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
             </svg>
           </span>
-          <input type="text" id="order-input"
-                 class="form-input pl-10 text-base h-12 shadow-sm"
-                 placeholder="e.g. S00013 or WHMEM/OUT/00001"
-                 onkeydown="if(event.key==='Enter') fetchOrder()" />
+          <input type="text" id="order-input" class="form-input pl-10 text-base h-12 shadow-sm"
+            placeholder="e.g. S00013 or WHMEM/OUT/00001" onkeydown="if(event.key==='Enter') fetchOrder()" />
         </div>
         <button id="fetch-btn" class="btn-primary h-12 px-6" onclick="fetchOrder()">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path d="m21 21-4.35-4.35M11 19A8 8 0 1 0 11 3a8 8 0 0 0 0 16z"/>
+            <path d="m21 21-4.35-4.35M11 19A8 8 0 1 0 11 3a8 8 0 0 0 0 16z" />
           </svg>
           Fetch Details
         </button>
@@ -215,13 +221,14 @@
         <div class="flex items-center gap-2">
           <button class="btn-secondary" onclick="addNewPallet()">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M12 5v14M5 12h14"/>
+              <path d="M12 5v14M5 12h14" />
             </svg>
             New Pallet
           </button>
           <button class="btn-secondary" onclick="clearWorkspace()">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              <path
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
             Clear
           </button>
@@ -277,7 +284,7 @@
               </h2>
               <button class="btn-success text-xs py-1 px-3" onclick="commitPalletContents()">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                  <path d="M5 13l4 4L19 7"/>
+                  <path d="M5 13l4 4L19 7" />
                 </svg>
                 Apply to Label
               </button>
@@ -295,30 +302,41 @@
           <div class="glass-card p-5">
             <h2 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4">✏️ Label Customizer</h2>
             <div class="space-y-3">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="form-label" for="lbl-type">Label Type</label>
+                  <select id="lbl-type" class="form-input" onchange="onCustomizerChange()">
+                    <option value="Mixed Trade Item" selected>Mixed Trade Item</option>
+                    <option value="Fixed Trade Item">Fixed Trade Item</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" for="lbl-client-ref">Internal Client Ref. No. (under Liwela GmbH)</label>
+                  <input type="text" id="lbl-client-ref" class="form-input" value="504772" placeholder="e.g. 504772"
+                    oninput="onCustomizerChange()" />
+                </div>
+              </div>
               <div>
                 <label class="form-label" for="lbl-pallet-title">Pallet Title</label>
                 <input type="text" id="lbl-pallet-title" class="form-input"
-                       placeholder="e.g. S03404 - Pallet 1 - 66 boxes"
-                       oninput="onCustomizerChange()" />
+                  placeholder="e.g. S03404 - Pallet 2 - 66 boxes" oninput="onCustomizerChange()" />
               </div>
               <div>
-                <label class="form-label" for="lbl-category">Category / Description</label>
-                <input type="text" id="lbl-category" class="form-input"
-                       placeholder="e.g. Mixed Apparel – Spring Collection 2025"
-                       oninput="onCustomizerChange()" />
+                <label class="form-label" for="lbl-product-category">Product Category Name</label>
+                <input type="text" id="lbl-product-category" class="form-input"
+                  value="MASECZKI W PŁACHCIE D/TW ABIB 27 ml MIX - 781648"
+                  placeholder="e.g. MASECZKI W PŁACHCIE D/TW ABIB 27 ml MIX - 781648" oninput="onCustomizerChange()" />
               </div>
               <div>
                 <label class="form-label" for="lbl-order-number">Order Number (override)</label>
-                <input type="text" id="lbl-order-number" class="form-input"
-                       placeholder="e.g. SO03404"
-                       oninput="onCustomizerChange()" />
+                <input type="text" id="lbl-order-number" class="form-input" placeholder="e.g. 9202851073"
+                  oninput="onCustomizerChange()" />
               </div>
               <div>
                 <label class="form-label" for="lbl-sscc">SSCC (18 digits)</label>
                 <div class="flex gap-2">
-                  <input type="text" id="lbl-sscc" class="form-input font-mono text-blue-900 font-bold"
-                         maxlength="18" placeholder="Auto-generated"
-                         oninput="onCustomizerChange()" />
+                  <input type="text" id="lbl-sscc" class="form-input font-mono text-blue-900 font-bold" maxlength="18"
+                    placeholder="Auto-generated" oninput="onCustomizerChange()" />
                   <button class="btn-secondary whitespace-nowrap" onclick="regenerateSSCC()">
                     ↻ New
                   </button>
@@ -326,7 +344,7 @@
               </div>
               <!-- Item Description overrides -->
               <div>
-                <label class="form-label">Item Descriptions</label>
+                <label class="form-label">Item Descriptions &amp; Multiplier / Qty</label>
                 <div id="item-desc-inputs" class="space-y-2"></div>
               </div>
             </div>
@@ -338,8 +356,8 @@
             <div id="print-btn-wrapper">
               <button class="btn-print" onclick="printLabel()">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                  <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
-                  <rect x="6" y="14" width="12" height="8" rx="1"/>
+                  <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
+                  <rect x="6" y="14" width="12" height="8" rx="1" />
                 </svg>
                 Print Label
               </button>
@@ -352,49 +370,54 @@
           <div class="label-wrapper">
             <div id="label-canvas">
 
-              <!-- 1. Sender Address -->
+              <!-- 1. Sender Address (Upper Left) -->
               <div class="label-sender">
-                <div class="company-name">Liwela GmbH</div>
-                <div>50472</div>
-                <div>Hansastraße 49</div>
-                <div>81373 München</div>
+                <div class="sender-company">Liwela GmbH</div>
+                <div class="sender-client-ref" id="lbl-display-client-ref">504772</div>
+                <div class="sender-line">Hansastraße 49</div>
+                <div class="sender-line">81373 München</div>
               </div>
 
-              <!-- 2. Logistics Manifest -->
+              <!-- 2. Logistics Manifest (Mixed Trade Item) -->
               <div class="label-manifest">
-                <div class="pallet-title" id="lbl-display-title">—</div>
-                <div class="category-line" id="lbl-display-category">—</div>
+                <div class="pallet-title" id="lbl-display-title">S03404 - Pallet 2 - 66 boxes</div>
+                <div class="product-category-line" id="lbl-display-product-category">MASECZKI W PŁACHCIE D/TW ABIB 27 ml
+                  MIX - 781648</div>
+                <div class="manifest-subheader" id="lbl-display-subheader">Total product amount on a pallet:</div>
                 <div class="item-list" id="lbl-display-items">
                   <!-- Populated by JS -->
                 </div>
               </div>
 
-              <!-- 3. SSCC / Order Index Grid -->
-              <div class="label-index-grid">
-                <div class="label-index-cell">
-                  <div class="cell-label">SSCC</div>
-                  <div class="cell-value sscc-value" id="lbl-display-sscc">—</div>
+              <!-- 3. Bottom Fixed Section: SSCC / Order Band + Barcodes + Footer -->
+              <div class="label-bottom-group">
+                <!-- SSCC & ORDER NUMBER Band between two horizontal black lines -->
+                <div class="label-index-band">
+                  <div class="band-row band-row-sscc">
+                    <span class="band-label">SSCC:</span>
+                    <span class="band-sscc-value" id="lbl-display-sscc">342624979800010470</span>
+                  </div>
+                  <div class="band-row band-row-order">
+                    <span class="band-label">ORDER NUMBER:</span>
+                    <span class="band-order-value" id="lbl-display-order">9202851073</span>
+                  </div>
                 </div>
-                <div class="label-index-cell">
-                  <div class="cell-label">Order No.</div>
-                  <div class="cell-value order-value" id="lbl-display-order">—</div>
-                </div>
-              </div>
 
-              <!-- 4. Dual GS1-128 Barcodes -->
-              <div class="label-barcodes">
-                <!-- Top Barcode: Order Reference -->
-                <div class="barcode-section">
-                  <span class="barcode-label">Order Reference (400)</span>
-                  <svg id="barcode-order-ref"></svg>
-                  <span class="barcode-text" id="barcode-order-ref-text">(400)9202851073</span>
+                <!-- 4. Dual GS1-128 Barcodes -->
+                <div class="label-barcodes">
+                  <!-- Top Barcode: (400) Order Number -->
+                  <div class="barcode-section">
+                    <svg id="barcode-order-ref"></svg>
+                    <div class="barcode-text" id="barcode-order-ref-text">(400)9202851073</div>
+                  </div>
+                  <!-- Bottom Barcode: (00) SSCC -->
+                  <div class="barcode-section">
+                    <svg id="barcode-sscc-tag"></svg>
+                    <div class="barcode-text" id="barcode-sscc-text">(00)342624979800010470</div>
+                  </div>
                 </div>
-                <!-- Bottom Barcode: SSCC (00) -->
-                <div class="barcode-section">
-                  <span class="barcode-label">SSCC Tracking (00)</span>
-                  <svg id="barcode-sscc-tag"></svg>
-                  <span class="barcode-text" id="barcode-sscc-text">(00)—</span>
-                </div>
+
+
               </div>
 
             </div><!-- #label-canvas -->
@@ -407,19 +430,27 @@
 
   <!-- Empty State (shown when no order loaded) -->
   <div id="empty-state" class="flex flex-col items-center justify-center py-20 text-center px-6">
-    <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-white border border-slate-200 shadow-sm text-blue-600">
+    <div
+      class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-white border border-slate-200 shadow-sm text-blue-600">
       <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-        <path d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5z"/>
-        <path d="M3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z"/>
-        <path d="M13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/>
-        <path d="M13.5 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z"/>
+        <path
+          d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5z" />
+        <path
+          d="M3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z" />
+        <path
+          d="M13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+        <path
+          d="M13.5 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z" />
       </svg>
     </div>
     <h2 class="text-lg font-bold text-slate-800 mb-1">No Order Loaded</h2>
-    <p class="text-slate-500 text-sm max-w-md">Enter a Sales Order (e.g. <code class="text-blue-700 bg-slate-100 px-1 py-0.5 rounded font-mono text-xs">S00013</code>) or Delivery reference above to fetch packing details and generate GS1 labels.</p>
+    <p class="text-slate-500 text-sm max-w-md">Enter a Sales Order (e.g. <code
+        class="text-blue-700 bg-slate-100 px-1 py-0.5 rounded font-mono text-xs">S00013</code>) or Delivery reference
+      above to fetch packing details and generate GS1 labels.</p>
   </div>
 
   <!-- Application Logic -->
   <script src="app.js"></script>
 </body>
+
 </html>

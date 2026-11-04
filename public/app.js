@@ -196,11 +196,13 @@ const State = {
 
   // Label customizer fields (mirrors DOM inputs)
   label: {
+    labelType: 'Mixed Trade Item',
+    clientRef: '504772',
     palletTitle: '',
-    category: '',
-    orderNumber: '',
+    productCategory: 'MASECZKI W PŁACHCIE D/TW ABIB 27 ml MIX - 781648',
+    orderNumber: '9202851073',
     sscc: '',
-    items: [],          // [{ gtin, productName, qtyText, descOverride }]
+    items: [],          // [{ lineIdx, gtin, productName, qtyText, descOverride, qtyOverride }]
     orderRef: '9202851073',  // the (400) barcode value
   },
 };
@@ -550,15 +552,13 @@ function renderBarcode(svgId, aiPrefix, value) {
   const el = document.getElementById(svgId);
   if (!el) return;
 
-  const displayText = `${aiPrefix}${value}`;
-
   try {
     JsBarcode(`#${svgId}`, value, {
       format: 'CODE128',
-      width: 1.6,
-      height: 40,
+      width: 1.55,
+      height: 58,
       displayValue: false,      // we render human-readable text separately
-      margin: 2,
+      margin: 0,
       background: '#ffffff',
       lineColor: '#000000',
     });
@@ -569,8 +569,8 @@ function renderBarcode(svgId, aiPrefix, value) {
 }
 
 function renderAllBarcodes() {
-  const orderRef  = State.label.orderRef || '9202851073';
-  const sscc      = State.label.sscc || '';
+  const orderRef = (State.label.orderNumber || State.label.orderRef || '9202851073').trim();
+  const sscc     = (State.label.sscc || '').trim();
 
   renderBarcode('barcode-order-ref', '(400)', orderRef);
   setText('barcode-order-ref-text', `(400)${orderRef}`);
@@ -808,16 +808,33 @@ function ensurePalletCustomizer(pallet) {
   if (!pallet) return pallet;
   if (!pallet.customizer || typeof pallet.customizer !== 'object') {
     pallet.customizer = {
+      labelType: 'Mixed Trade Item',
+      clientRef: '504772',
       palletTitle: '',
       isCustomTitle: false,
-      category: 'Mixed Goods Shipment',
+      productCategory: 'MASECZKI W PŁACHCIE D/TW ABIB 27 ml MIX - 781648',
       orderNumber: '',
       isCustomOrderNo: false,
       itemOverrides: {},
+      qtyOverrides: {},
     };
+  }
+  if (!pallet.customizer.labelType) {
+    pallet.customizer.labelType = 'Mixed Trade Item';
+  }
+  if (pallet.customizer.clientRef === undefined) {
+    pallet.customizer.clientRef = '504772';
+  }
+  if (pallet.customizer.productCategory === undefined) {
+    pallet.customizer.productCategory = pallet.customizer.category && pallet.customizer.category !== 'Mixed Goods Shipment'
+      ? pallet.customizer.category
+      : 'MASECZKI W PŁACHCIE D/TW ABIB 27 ml MIX - 781648';
   }
   if (!pallet.customizer.itemOverrides || typeof pallet.customizer.itemOverrides !== 'object') {
     pallet.customizer.itemOverrides = {};
+  }
+  if (!pallet.customizer.qtyOverrides || typeof pallet.customizer.qtyOverrides !== 'object') {
+    pallet.customizer.qtyOverrides = {};
   }
   return pallet;
 }
@@ -970,8 +987,14 @@ function autoUpdateCustomizerFromPallet() {
   if (!pallet) return;
 
   const orderId = State.order?.order_id || '';
-  const defaultOrderNo = State.order?.sale_order || orderId;
+  const defaultOrderNo = State.order?.client_order_ref || State.order?.sale_order || orderId || '9202851073';
   const defaultTitle = getDefaultPalletTitle(pallet);
+
+  const labelTypeVal = pallet.customizer.labelType || 'Mixed Trade Item';
+  const clientRefVal = pallet.customizer.clientRef !== undefined ? pallet.customizer.clientRef : '504772';
+  const productCategoryVal = pallet.customizer.productCategory !== undefined
+    ? pallet.customizer.productCategory
+    : 'MASECZKI W PŁACHCIE D/TW ABIB 27 ml MIX - 781648';
 
   const palletTitle = (pallet.customizer.isCustomTitle && pallet.customizer.palletTitle)
     ? pallet.customizer.palletTitle
@@ -981,38 +1004,41 @@ function autoUpdateCustomizerFromPallet() {
     ? pallet.customizer.orderNumber
     : defaultOrderNo;
 
-  const categoryVal = pallet.customizer.category || 'Mixed Goods Shipment';
-
   // Update customizer DOM inputs
+  setInputValue('lbl-type', labelTypeVal);
+  setInputValue('lbl-client-ref', clientRefVal);
   setInputValue('lbl-pallet-title', palletTitle);
+  setInputValue('lbl-product-category', productCategoryVal);
   setInputValue('lbl-order-number', displayOrderNo);
   setInputValue('lbl-sscc', pallet.sscc);
-  setInputValue('lbl-category', categoryVal);
 
-  if (State.order?.client_order_ref) {
-    State.label.orderRef = State.order.client_order_ref;
-  }
+  State.label.orderRef = displayOrderNo;
 
-  // Build items list for customizer, restoring per-pallet itemOverrides by lineIdx
+  // Build items list for customizer, restoring per-pallet itemOverrides and qtyOverrides by lineIdx
   const items = Object.values(pallet.lines || {})
     .filter(l => l.qty > 0)
     .map(e => {
       const line = State.moveLines[e.lineIdx] || {};
-      const savedOverride = pallet.customizer.itemOverrides?.[e.lineIdx];
+      const savedDescOverride = pallet.customizer.itemOverrides?.[e.lineIdx];
+      const defaultQtyTxt = `${e.qty} pcs`;
+      const savedQtyOverride = pallet.customizer.qtyOverrides?.[e.lineIdx];
       return {
         lineIdx: e.lineIdx,
         gtin: line.barcode || '',
         productName: line.product_name || '',
-        qtyText: `${e.qty} pcs`,
-        descOverride: savedOverride !== undefined ? savedOverride : (line.product_name || ''),
+        qtyText: defaultQtyTxt,
+        descOverride: savedDescOverride !== undefined ? savedDescOverride : (line.product_name || ''),
+        qtyOverride: savedQtyOverride !== undefined ? savedQtyOverride : defaultQtyTxt,
       };
     });
 
-  State.label.items       = items;
-  State.label.palletTitle = palletTitle;
-  State.label.category    = categoryVal;
-  State.label.orderNumber = displayOrderNo;
-  State.label.sscc        = pallet.sscc;
+  State.label.labelType       = labelTypeVal;
+  State.label.clientRef       = clientRefVal;
+  State.label.palletTitle     = palletTitle;
+  State.label.productCategory = productCategoryVal;
+  State.label.orderNumber     = displayOrderNo;
+  State.label.sscc            = pallet.sscc;
+  State.label.items           = items;
 
   renderItemDescInputs(items);
   syncLabelPreview();
@@ -1033,21 +1059,28 @@ function commitPalletContents() {
  * Reads all fields → saves into active pallet's customizer state → updates State.label → syncs preview.
  */
 function onCustomizerChange(shouldPersist = true) {
-  const titleVal   = (document.getElementById('lbl-pallet-title')?.value || '').trim();
-  const catVal     = (document.getElementById('lbl-category')?.value || '').trim();
-  const orderNoVal = (document.getElementById('lbl-order-number')?.value || '').trim();
-  const ssccVal    = (document.getElementById('lbl-sscc')?.value || '').trim();
+  const labelTypeVal   = (document.getElementById('lbl-type')?.value || 'Mixed Trade Item').trim();
+  const clientRefVal   = (document.getElementById('lbl-client-ref')?.value ?? '504772').trim();
+  const titleVal       = (document.getElementById('lbl-pallet-title')?.value || '').trim();
+  const prodCatVal     = (document.getElementById('lbl-product-category')?.value ?? '').trim();
+  const orderNoVal     = (document.getElementById('lbl-order-number')?.value || '').trim();
+  const ssccVal        = (document.getElementById('lbl-sscc')?.value || '').trim();
 
-  State.label.palletTitle = titleVal;
-  State.label.category    = catVal;
-  State.label.orderNumber = orderNoVal;
-  State.label.sscc        = ssccVal;
+  State.label.labelType       = labelTypeVal;
+  State.label.clientRef       = clientRefVal;
+  State.label.palletTitle     = titleVal;
+  State.label.productCategory = prodCatVal;
+  State.label.orderNumber     = orderNoVal;
+  State.label.orderRef        = orderNoVal || '9202851073';
+  State.label.sscc            = ssccVal;
 
-  // Read item desc overrides
+  // Read item desc & qty/multiplier overrides
   if (Array.isArray(State.label.items)) {
     State.label.items.forEach((item, i) => {
       const overrideEl = document.getElementById(`item-desc-${i}`);
       if (overrideEl) item.descOverride = overrideEl.value;
+      const qtyOverrideEl = document.getElementById(`item-qty-${i}`);
+      if (qtyOverrideEl) item.qtyOverride = qtyOverrideEl.value;
     });
   }
 
@@ -1055,6 +1088,9 @@ function onCustomizerChange(shouldPersist = true) {
   if (State.activePalletIndex >= 0 && State.pallets[State.activePalletIndex]) {
     const pallet = ensurePalletCustomizer(State.pallets[State.activePalletIndex]);
     pallet.sscc = ssccVal;
+    pallet.customizer.labelType = labelTypeVal;
+    pallet.customizer.clientRef = clientRefVal;
+    pallet.customizer.productCategory = prodCatVal;
 
     const defaultTitle = getDefaultPalletTitle(pallet);
     if (titleVal && titleVal !== defaultTitle) {
@@ -1065,7 +1101,7 @@ function onCustomizerChange(shouldPersist = true) {
       pallet.customizer.palletTitle = defaultTitle;
     }
 
-    const defaultOrderNo = State.order?.sale_order || State.order?.order_id || '';
+    const defaultOrderNo = State.order?.client_order_ref || State.order?.sale_order || State.order?.order_id || '9202851073';
     if (orderNoVal && orderNoVal !== defaultOrderNo) {
       pallet.customizer.isCustomOrderNo = true;
       pallet.customizer.orderNumber = orderNoVal;
@@ -1074,12 +1110,11 @@ function onCustomizerChange(shouldPersist = true) {
       pallet.customizer.orderNumber = defaultOrderNo;
     }
 
-    pallet.customizer.category = catVal || 'Mixed Goods Shipment';
-
     if (Array.isArray(State.label.items)) {
       State.label.items.forEach(item => {
         if (item.lineIdx !== undefined) {
           pallet.customizer.itemOverrides[item.lineIdx] = item.descOverride;
+          pallet.customizer.qtyOverrides[item.lineIdx]  = item.qtyOverride;
         }
       });
     }
@@ -1092,7 +1127,7 @@ function onCustomizerChange(shouldPersist = true) {
 }
 
 /**
- * Renders individual override text inputs for each item.
+ * Renders individual override text inputs for each item (Product Description + Multiplier/Qty).
  */
 function renderItemDescInputs(items) {
   const container = document.getElementById('item-desc-inputs');
@@ -1106,11 +1141,18 @@ function renderItemDescInputs(items) {
       <span class="text-xs text-slate-500 w-5 text-right">${i + 1}.</span>
       <input type="text"
              id="item-desc-${i}"
-             class="form-input text-xs"
-             value="${escapeHtml(item.descOverride || item.productName)}"
+             class="form-input text-xs flex-1"
+             value="${escapeHtml(item.descOverride ?? item.productName)}"
              placeholder="${escapeHtml(item.productName)}"
-             oninput="onCustomizerChange()" />
-      <span class="text-xs font-mono text-blue-600 font-medium whitespace-nowrap">${item.qtyText}</span>
+             oninput="onCustomizerChange()"
+             title="Product Description" />
+      <input type="text"
+             id="item-qty-${i}"
+             class="form-input text-xs font-mono w-36"
+             value="${escapeHtml(item.qtyOverride ?? item.qtyText)}"
+             placeholder="e.g. 15 x 66 = 990 pcs"
+             oninput="onCustomizerChange()"
+             title="Multiplier / Total Qty (e.g. 15 x 66 = 990 pcs)" />
     </div>
   `).join('');
 }
@@ -1119,11 +1161,14 @@ function renderItemDescInputs(items) {
  * Push State.label data into the label canvas DOM elements.
  */
 function syncLabelPreview() {
-  // Title
+  // Sender Internal Client Ref (under Liwela GmbH)
+  setText('lbl-display-client-ref', State.label.clientRef || '504772');
+
+  // Pallet Title (Bold)
   setText('lbl-display-title', State.label.palletTitle || '—');
 
-  // Category
-  setText('lbl-display-category', State.label.category || '—');
+  // Product Category Name
+  setText('lbl-display-product-category', State.label.productCategory || '');
 
   // Order number
   setText('lbl-display-order', State.label.orderNumber || '—');
@@ -1131,23 +1176,21 @@ function syncLabelPreview() {
   // SSCC
   setText('lbl-display-sscc', State.label.sscc || '—');
 
-  // Items list
+  // Items list — formatted identically to GS1 Mixed Trade Item print specification:
+  // "8800280693419 - Abib Madecassoside Soothing Sheet Mask Essential Fit: 15 x 66 = 990 pcs"
   const itemsContainer = document.getElementById('lbl-display-items');
   if (itemsContainer) {
     if (!State.label.items || !State.label.items.length) {
-      itemsContainer.innerHTML = '<div class="text-gray-400 italic">No items assigned</div>';
+      itemsContainer.innerHTML = '<div class="item-line">—</div>';
     } else {
       itemsContainer.innerHTML = State.label.items.map(item => {
-        const desc    = item.descOverride || item.productName;
-        const gtin    = item.gtin;
-        const qtyTxt  = item.qtyText;
-        return `
-          <div class="item-row">
-            ${gtin ? `<span class="item-gtin">[${escapeHtml(gtin)}]</span>` : ''}
-            <span class="item-name">${escapeHtml(desc)}</span>
-            <span class="item-qty">${escapeHtml(qtyTxt)}</span>
-          </div>
-        `;
+        const rawDesc = (item.descOverride ?? item.productName ?? '').trim();
+        const cleanDesc = rawDesc.replace(/:+\s*$/, '');
+        const gtin = (item.gtin || '').trim();
+        const qtyTxt = (item.qtyOverride ?? item.qtyText ?? '').trim();
+        const prefix = gtin ? `${escapeHtml(gtin)} - ` : '';
+        const suffix = qtyTxt ? `: ${escapeHtml(qtyTxt)}` : '';
+        return `<div class="item-line">${prefix}${escapeHtml(cleanDesc)}${suffix}</div>`;
       }).join('');
     }
   }
@@ -1212,8 +1255,14 @@ function clearWorkspace() {
   State.pallets = [];
   State.activePalletIndex = -1;
   State.label = {
-    palletTitle: '', category: '', orderNumber: '', sscc: '',
-    items: [], orderRef: State.label.orderRef,
+    labelType: 'Mixed Trade Item',
+    clientRef: '504772',
+    palletTitle: '',
+    productCategory: 'MASECZKI W PŁACHCIE D/TW ABIB 27 ml MIX - 781648',
+    orderNumber: '9202851073',
+    sscc: '',
+    items: [],
+    orderRef: '9202851073',
   };
 
   document.getElementById('main-workspace').classList.add('hidden');

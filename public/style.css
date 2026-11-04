@@ -342,7 +342,7 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   A6 LABEL CANVAS  (105mm × 148mm)
+   A6 LABEL CANVAS  (105mm × 148mm) — Exact GS1 Print Reference
    ═══════════════════════════════════════════════════════════════ */
 .label-wrapper {
   display: flex;
@@ -357,148 +357,162 @@ body {
 #label-canvas {
   width: 105mm;
   height: 148mm;
+  padding: 5.5mm 6mm 3mm 6mm;
+  box-sizing: border-box;
   background: #ffffff;
   color: #000000;
-  font-family: 'Arial', 'Helvetica', sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
   display: flex;
   flex-direction: column;
-  border: var(--border-heavy);
+  border: 1px solid #cbd5e1;
   position: relative;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
 }
 
-/* ── Sender Address Block ───────────────────────────────────── */
+/* ── 1. Sender Address Block (Upper Left) ───────────────────── */
 .label-sender {
-  padding: 4mm 4mm 3mm 4mm;
-  border-bottom: var(--border-heavy);
-  font-size: 10pt;
-  line-height: 1.4;
+  font-size: 8.5pt;
+  line-height: 1.32;
+  color: #000000;
+  margin-bottom: 8.5mm;
+}
+.label-sender .sender-company {
   font-weight: 400;
 }
-.label-sender .company-name {
-  font-size: 12pt;
+.label-sender .sender-client-ref {
   font-weight: 700;
-  letter-spacing: -0.3px;
+}
+.label-sender .sender-line {
+  font-weight: 400;
 }
 
-/* ── Logistics Manifest Block ───────────────────────────────── */
+/* ── 2. Logistics Manifest Block ────────────────────────────── */
 .label-manifest {
-  padding: 3mm 4mm;
-  border-bottom: var(--border-heavy);
   flex: 1;
   overflow: hidden;
+  color: #000000;
 }
 .label-manifest .pallet-title {
-  font-size: 11pt;
-  font-weight: 800;
-  letter-spacing: -0.2px;
-  line-height: 1.2;
-  margin-bottom: 1mm;
+  font-size: 10pt;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 0.6mm;
+  color: #000000;
 }
-.label-manifest .category-line {
-  font-size: 8.5pt;
-  color: #444;
-  margin-bottom: 2mm;
-  font-style: italic;
+.label-manifest .product-category-line {
+  font-size: 9.5pt;
+  font-weight: 400;
+  line-height: 1.25;
+  margin-bottom: 1.4mm;
+  color: #000000;
+}
+.label-manifest .manifest-subheader {
+  font-size: 8pt;
+  font-weight: 400;
+  line-height: 1.25;
+  margin-bottom: 0.3mm;
+  color: #000000;
 }
 .label-manifest .item-list {
   font-size: 8pt;
-  line-height: 1.55;
+  font-weight: 400;
+  line-height: 1.22;
+  color: #000000;
 }
-.label-manifest .item-row {
-  display: flex;
-  gap: 4px;
-  align-items: baseline;
-}
-.label-manifest .item-gtin {
-  font-family: 'Courier New', monospace;
-  font-size: 7.5pt;
-  color: #333;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.label-manifest .item-name {
-  font-weight: 600;
-  font-size: 8pt;
-}
-.label-manifest .item-qty {
-  font-size: 7.5pt;
-  color: #333;
-  margin-left: auto;
-  white-space: nowrap;
-  flex-shrink: 0;
+.label-manifest .item-line {
+  margin-bottom: 0.3mm;
+  word-wrap: break-word;
 }
 
-/* ── SSCC / Order Number Grid ───────────────────────────────── */
-.label-index-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border-bottom: var(--border-heavy);
-}
-.label-index-cell {
-  padding: 2mm 3mm;
-}
-.label-index-cell:first-child {
-  border-right: var(--border-medium);
-}
-.label-index-cell .cell-label {
-  font-size: 7pt;
-  color: #555;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 0.5mm;
-}
-.label-index-cell .cell-value {
-  font-family: 'Courier New', monospace;
-  font-size: 13pt;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  line-height: 1;
-  word-break: break-all;
-}
-.label-index-cell .cell-value.sscc-value {
-  font-size: 11pt;
-}
-.label-index-cell .cell-value.order-value {
-  font-size: 14pt;
-}
-
-/* ── Barcode Block ──────────────────────────────────────────── */
-.label-barcodes {
+/* ── 3. Bottom Fixed Section (Band + Barcodes + Footer) ─────── */
+.label-bottom-group {
+  margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 0;
 }
-.barcode-section {
-  padding: 2mm 4mm;
+
+/* ── SSCC / ORDER NUMBER Band between two horizontal lines ──── */
+.label-index-band {
+  border-top: 0.75pt solid #000000;
+  border-bottom: 0.75pt solid #000000;
+  padding: 1.4mm 0 1.6mm 0;
+}
+.band-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.band-row-sscc {
+  margin-bottom: 1.2mm;
+}
+.band-label {
+  font-size: 6.5pt;
+  font-weight: 400;
+  text-transform: uppercase;
+  color: #000000;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+}
+.band-sscc-value {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 19pt;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.2px;
+  color: #000000;
+  text-align: right;
+}
+.band-order-value {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16.5pt;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.2px;
+  color: #000000;
+  text-align: right;
+}
+
+/* ── 4. Dual GS1-128 Barcodes Block ─────────────────────────── */
+.label-barcodes {
+  padding-top: 1.8mm;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1mm;
+  gap: 2mm;
 }
-.barcode-section:first-child {
-  border-bottom: var(--border-medium);
+.barcode-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
 }
-.barcode-section .barcode-label {
-  font-size: 7pt;
-  color: #555;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  align-self: flex-start;
+.barcode-section svg,
+.barcode-section canvas,
+.barcode-section img {
+  display: block;
+  max-width: 78mm;
+  height: 20.5mm;
 }
 .barcode-section .barcode-text {
-  font-family: 'Courier New', monospace;
-  font-size: 8pt;
-  color: #111;
-  letter-spacing: 1px;
+  font-family: 'OCR-B', 'Consolas', 'Lucida Console', 'Courier New', monospace;
+  font-size: 8.5pt;
+  font-weight: 400;
+  letter-spacing: 0.6px;
+  line-height: 1.15;
+  margin-top: 0.4mm;
+  color: #000000;
+  text-align: center;
 }
-.barcode-section canvas,
-.barcode-section img,
-.barcode-section svg {
-  display: block;
-  max-width: 100%;
-  height: auto;
+
+/* ── 5. Version Footer ──────────────────────────────────────── */
+.label-footer {
+  text-align: right;
+  font-size: 5pt;
+  font-weight: 400;
+  color: #000000;
+  margin-top: 1.4mm;
+  line-height: 1;
 }
 
 /* ── Print Action Button ────────────────────────────────────── */
@@ -548,9 +562,10 @@ body {
     width: 105mm !important;
     height: 148mm !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 5.5mm 6mm 3mm 6mm !important;
+    box-sizing: border-box !important;
     box-shadow: none !important;
-    border: 2px solid #000000 !important;
+    border: none !important;
     background: #ffffff !important;
     color: #000000 !important;
     page-break-inside: avoid;
